@@ -87,8 +87,9 @@ class NchiladaSnap(SimSnap):
 
     def __init__(self, filename, take=None, paramfile=None):
         super(NchiladaSnap, self).__init__()
-        self._dom_sim = xml.dom.minidom.parse(
-            os.path.join(filename, "description.xml")).getElementsByTagName('simulation')[0]
+        self._dom = xml.dom.minidom.parse(os.path.join(filename,
+                                                       "description.xml"))
+        self._dom_sim = self._dom.getElementsByTagName('simulation')[0]
         self._filename = filename
         self._update_loadable_keys()
         self._setup_slices(take=take)

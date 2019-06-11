@@ -444,6 +444,53 @@ class AHFCatalogue(HaloCatalogue):
         print >> fpout, outstring
         fpout.close()
 
+    def writegrp_nc(self, grpoutfile=False):
+        """
+        Write the skid style .grp information out as an NChilada attribute
+        file "grp" in the family directories in groupoutfile.
+        TODO: writing NC arrays is yet to be implemented in the
+        NChilada snapshot class.  When that gets implemented, this function
+        should use the _writearray method from that class.
+        """
+        from ..snapshot import nchilada
+        from .. import family
+        import struct
+        snapshot = self[1].ancestor
+        try:
+            snapshot['grp']
+        except:
+            self.make_grp()
+        if not grpoutfile:
+            grpoutfile = snapshot.filename
+        logger.info("Writing grp file to %s" % grpoutfile)
+        
+        # Assume subdirectories given by family name
+        fams = snapshot._dom_sim.getElementsByTagName('family')
+        for fam in fams:
+            fpout = open(grpoutfile+"/"+fam.getAttribute('name')+"/grp",
+                         "wb")
+            # The following should be refactored into "writeheader"
+            magic = 1062053
+            time = snapshot.properties['a']
+            ndim = 1
+            code = nchilada._type_codes.index(snapshot['grp'].dtype)
+            snapFam = snapshot[family.get_family(fam.getAttribute('name'))]
+            fpout.write(struct.pack(">idQii", magic, time, len(snapFam['grp']),
+                                    ndim, code))
+            minmax = np.array([min(snapFam['grp']),max(snapFam['grp'])])
+            minmax.byteswap().tofile(fpout)
+            # header is finished
+            snapFam['grp'].byteswap().tofile(fpout)
+            fpout.close()
+            # Now rewrite the description.xml file to include "grp"
+            newAttrib = snapshot._dom.createElement("attribute")
+            newAttrib.setAttribute("name", "grp")
+            newAttrib.setAttribute("link", fam.getAttribute('name')+"/grp")
+            fam.appendChild(newAttrib)
+        fdes = open(snapshot.filename+"/new_description.xml", "w+")
+        fdes.write(snapshot._dom.toprettyxml())
+        fdes.close()
+        
     def writestat(self, snapshot, halos, statoutfile, hubble=None):
         """
         write a condensed skid.stat style ascii file from ahf_halos
